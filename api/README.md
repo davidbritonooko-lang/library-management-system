@@ -207,3 +207,71 @@ The seed script uses `upsert` operations to prevent duplicate records when execu
 - Prisma ORM — database schema, migrations and queries.
 - NestJS — backend application framework.
 - Supabase — hosted PostgreSQL database.
+
+## Book API, Authentication and Authorization
+
+### Configuration
+
+Copy `.env.example` to `.env` and configure `DATABASE_URL`, `DIRECT_URL`, and a strong random `JWT_SECRET`. Never commit `.env`.
+
+To provision a librarian account for protected catalog writes, set all three optional variables before running the seed:
+
+- `LIBRARIAN_NAME`
+- `LIBRARIAN_EMAIL`
+- `LIBRARIAN_PASSWORD`
+
+The seed hashes the librarian password with bcrypt. If these variables are omitted, the genre and book seed data still runs, but no librarian account is created. Existing accounts from before the password migration receive a reset-required placeholder and cannot log in until an administrator sets a new bcrypt password hash for them.
+
+### Apply the database migration
+
+From the `api` directory:
+
+```bash
+npx prisma migrate deploy
+npx prisma generate
+npx prisma db seed
+npm run build
+npm test
+```
+
+### Authentication
+
+- `POST /auth/register` creates a PATRON account and returns a bearer JWT.
+- `POST /auth/login` verifies the bcrypt password hash and returns a bearer JWT.
+- Tokens expire after one hour. Send them as `Authorization: Bearer <token>`.
+
+Registration never accepts a role from the request body. New accounts are always PATRON. Librarian privileges must be assigned through trusted administrative provisioning, such as the optional librarian seed configuration.
+
+### Genres
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| POST | `/genres` | Create a genre |
+| GET | `/genres` | List genres |
+| GET | `/genres/:id` | Get one genre |
+| PATCH | `/genres/:id` | Update a genre |
+| DELETE | `/genres/:id` | Delete a genre (blocked while books reference it) |
+
+Genre create/update payloads are validated. Genre IDs must be UUIDs. Names and slugs are unique.
+
+### Books
+
+| Method | Endpoint | Access | Purpose |
+| --- | --- | --- | --- |
+| GET | `/books` | Public | List, filter, search, and paginate books |
+| GET | `/books/:id` | Public | Get one book |
+| POST | `/books` | LIBRARIAN | Create a book |
+| PATCH | `/books/:id` | LIBRARIAN | Update a book |
+| DELETE | `/books/:id` | LIBRARIAN | Delete a book |
+
+The list endpoint accepts `genreId`, `search`, `page`, and `limit`. Search matches title or author without case sensitivity. Pagination defaults to page 1 and 10 records per page; the maximum page size is 100. The response contains `data` and pagination metadata in `meta`.
+
+A newly created book starts with `availableCopies` equal to `totalCopies`. When total copies are changed, the service preserves the number of copies currently borrowed and rejects totals that would make available copies negative.
+
+### Authorization
+
+Book create/update/delete routes run `JwtAuthGuard` before `RolesGuard`. The JWT strategy verifies the bearer token using `JWT_SECRET`, and the roles guard permits only users whose token role is `LIBRARIAN`. Hiding controls in a frontend is not treated as authorization.
+
+### Postman
+
+Import `docs/postman_collection.json` into Postman. The collection includes all 12 implemented endpoints. Set the collection's `baseUrl`, `genreId`, and `bookId` variables as needed. Log in with the seeded librarian account to populate the `token` variable before running Book create/update/delete requests.

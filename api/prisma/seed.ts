@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client.js";
+import { PrismaClient, Role } from "../src/generated/prisma/client.js";
+import * as bcrypt from "bcrypt";
 
 const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 
@@ -80,6 +81,43 @@ async function main() {
         },
       });
     }
+  }
+
+  const librarianName = process.env.LIBRARIAN_NAME;
+  const librarianEmail = process.env.LIBRARIAN_EMAIL?.toLowerCase();
+  const librarianPassword = process.env.LIBRARIAN_PASSWORD;
+  const librarianConfig = [librarianName, librarianEmail, librarianPassword];
+
+  if (librarianConfig.some(Boolean) && !librarianConfig.every(Boolean)) {
+    throw new Error(
+      "Set LIBRARIAN_NAME, LIBRARIAN_EMAIL, and LIBRARIAN_PASSWORD together",
+    );
+  }
+
+  if (librarianName && librarianEmail && librarianPassword) {
+    const passwordBytes = Buffer.byteLength(librarianPassword, "utf8");
+    if (passwordBytes < 8 || passwordBytes > 72) {
+      throw new Error(
+        "LIBRARIAN_PASSWORD must be between 8 and 72 bytes for bcrypt",
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(librarianPassword, 12);
+    await prisma.user.upsert({
+      where: { email: librarianEmail },
+      update: {
+        name: librarianName,
+        passwordHash,
+        role: Role.LIBRARIAN,
+      },
+      create: {
+        name: librarianName,
+        email: librarianEmail,
+        passwordHash,
+        role: Role.LIBRARIAN,
+      },
+    });
+    console.log("Librarian account configured: " + librarianEmail);
   }
 
   const genreCount = await prisma.genre.count();

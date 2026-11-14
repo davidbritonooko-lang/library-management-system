@@ -1,0 +1,261 @@
+{
+  "info": {
+    "name": "Library Management System API",
+    "description": "All 12 core API endpoints. Run in order. Configure the seeded librarian credentials in the Login request and use the saved collection variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "genreId",
+      "value": ""
+    },
+    {
+      "key": "bookId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register patron",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Patron\",\n  \"email\": \"patron@example.com\",\n  \"password\": \"ChangeMe123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/register"
+          }
+        },
+        {
+          "name": "Login as librarian",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if ([200, 201].includes(pm.response.code)) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.access_token) pm.collectionVariables.set('token', body.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"librarian@example.com\",\n  \"password\": \"replace-with-seed-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog CRUD",
+      "item": [
+        {
+          "name": "Create genre",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('genreId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mystery\",\n  \"slug\": \"mystery\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/genres"
+          }
+        },
+        {
+          "name": "List genres",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/genres"
+          }
+        },
+        {
+          "name": "Get genre",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/genres/{{genreId}}"
+          }
+        },
+        {
+          "name": "Update genre",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mystery & Crime\",\n  \"slug\": \"mystery-crime\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/genres/{{genreId}}"
+          }
+        },
+        {
+          "name": "List books (filter, search, paginate)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/books?genreId={{genreId}}&search=library&page=1&limit=10"
+          }
+        },
+        {
+          "name": "Create book (LIBRARIAN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('bookId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"The Mystery Library\",\n  \"author\": \"A. Writer\",\n  \"isbn\": \"9780306406157\",\n  \"totalCopies\": 4,\n  \"genreId\": \"{{genreId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/books"
+          }
+        },
+        {
+          "name": "Get book",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/books/{{bookId}}"
+          }
+        },
+        {
+          "name": "Update book (LIBRARIAN)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"The Updated Mystery Library\",\n  \"totalCopies\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/books/{{bookId}}"
+          }
+        },
+        {
+          "name": "Delete book (LIBRARIAN)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/books/{{bookId}}"
+          }
+        },
+        {
+          "name": "Delete genre",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/genres/{{genreId}}"
+          }
+        }
+      ]
+    }
+  ]
+}
