@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, BookOpen, BookMarked, ChevronLeft, ChevronRight,
   CircleAlert, Compass, Search, SlidersHorizontal, Sparkles,
@@ -20,8 +20,8 @@ function coverStyle(book) {
 function Header() {
   return <header className="site-header">
     <Link to="/" className="brand" aria-label="Open Shelf home"><span className="brand-mark"><BookOpen size={21} /></span><span>open<span className="brand-light">shelf</span></span></Link>
-    <nav className="header-nav" aria-label="Main navigation"><a href="#catalog">Discover</a><a href="#about">About</a></nav>
-    <a className="header-action" href="#catalog">Explore collection <ArrowRight size={15} /></a>
+    <nav className="header-nav" aria-label="Main navigation"><Link to="/#catalog">Discover</Link><Link to="/#about">About</Link></nav>
+    <Link className="header-action" to="/#catalog">Explore collection <ArrowRight size={15} /></Link>
   </header>;
 }
 function Footer() {
@@ -53,7 +53,8 @@ function HomePage() {
   const [params, setParams] = useSearchParams();
   const searchFromUrl = params.get('search') || '';
   const genreFromUrl = params.get('genreId') || '';
-  const pageFromUrl = Math.max(1, Number(params.get('page')) || 1);
+  const requestedPage = Number(params.get('page'));
+  const pageFromUrl = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const [searchInput, setSearchInput] = useState(searchFromUrl);
   const searchInputRef = useRef(null);
   const [genres, setGenres] = useState([]);
@@ -112,7 +113,7 @@ function HomePage() {
   function changePage(page) {
     const next = new URLSearchParams(params);
     if (page > 1) next.set('page', String(page)); else next.delete('page');
-    setParams(next); document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+    setParams(next); document.getElementById('catalog')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
   const selectedGenre = genres.find((genre) => genre.id === genreFromUrl);
   const pageNumbers = useMemo(() => {
@@ -139,7 +140,7 @@ function HomePage() {
   </main><Footer /></>;
 }
 function BookDetailPage() {
-  const { id } = useParams(); const navigate = useNavigate();
+  const { id } = useParams();
   const [book, setBook] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError('');
@@ -148,7 +149,7 @@ function BookDetailPage() {
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [id]);
-  return <><Header /><main className="detail-page"><button className="back-link" onClick={() => navigate(-1)}><ArrowLeft size={16} /> Back to collection</button>
+  return <><Header /><main className="detail-page"><Link className="back-link" to="/"><ArrowLeft size={16} /> Back to collection</Link>
     {loading ? <div className="detail-loading"><div className="skeleton-cover" /><div><div className="skeleton-line" /><div className="skeleton-line short" /></div></div> : error ? <Notice title="We couldn't open this book" message={error} action={<Link className="text-button" to="/">Return to the catalog <ArrowRight size={14} /></Link>} /> : book ? <div className="detail-layout"><div className="detail-art-wrap"><div className="detail-art" style={coverStyle(book)}><span className="detail-art-brand">OPEN SHELF · LIBRARY EDITION</span><div className="detail-art-title">{book.title}</div><span className="detail-art-author">{book.author}</span><div className="detail-art-footer"><BookOpen size={22} /><span>READ · DISCOVER · REPEAT</span></div></div><span className="art-note">A story waiting to be opened.</span></div><article className="detail-content"><div className="eyebrow"><span className="eyebrow-line" /> BOOK DETAILS</div><span className="detail-genre">{book.genre?.name || 'Library collection'}</span><h1>{book.title}</h1><p className="detail-author">by {book.author}</p><div className="detail-divider" /><p className="detail-intro">Every book holds a world of its own. Discover this title in our library collection and find a little time for a new perspective.</p><dl className="book-facts"><div><dt>ISBN</dt><dd>{book.isbn}</dd></div><div><dt>GENRE</dt><dd>{book.genre?.name || '—'}</dd></div><div><dt>TOTAL COPIES</dt><dd>{book.totalCopies}</dd></div><div><dt>AVAILABLE</dt><dd>{book.availableCopies} of {book.totalCopies}</dd></div></dl><div className="availability-panel"><span className={book.availableCopies > 0 ? 'status-dot' : 'status-dot unavailable'} /><div><strong>{book.availableCopies > 0 ? 'Available in the library' : 'Not currently available'}</strong><p>{book.availableCopies > 0 ? 'This title is currently on the shelf.' : 'Check back soon for availability.'}</p></div></div><Link to="/" className="primary-button">Explore more books <ArrowRight size={16} /></Link></article></div> : null}
   </main><Footer /></>;
 }
