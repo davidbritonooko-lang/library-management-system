@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, BookOpen, BookMarked, ChevronLeft, ChevronRight,
   CircleAlert, Compass, Search, SlidersHorizontal, Sparkles,
@@ -153,6 +153,26 @@ function BookDetailPage() {
     {loading ? <div className="detail-loading"><div className="skeleton-cover" /><div><div className="skeleton-line" /><div className="skeleton-line short" /></div></div> : error ? <Notice title="We couldn't open this book" message={error} action={<Link className="text-button" to="/">Return to the catalog <ArrowRight size={14} /></Link>} /> : book ? <div className="detail-layout"><div className="detail-art-wrap"><div className="detail-art" style={coverStyle(book)}><span className="detail-art-brand">OPEN SHELF · LIBRARY EDITION</span><div className="detail-art-title">{book.title}</div><span className="detail-art-author">{book.author}</span><div className="detail-art-footer"><BookOpen size={22} /><span>READ · DISCOVER · REPEAT</span></div></div><span className="art-note">A story waiting to be opened.</span></div><article className="detail-content"><div className="eyebrow"><span className="eyebrow-line" /> BOOK DETAILS</div><span className="detail-genre">{book.genre?.name || 'Library collection'}</span><h1>{book.title}</h1><p className="detail-author">by {book.author}</p><div className="detail-divider" /><p className="detail-intro">Every book holds a world of its own. Discover this title in our library collection and find a little time for a new perspective.</p><dl className="book-facts"><div><dt>ISBN</dt><dd>{book.isbn}</dd></div><div><dt>GENRE</dt><dd>{book.genre?.name || '—'}</dd></div><div><dt>TOTAL COPIES</dt><dd>{book.totalCopies}</dd></div><div><dt>AVAILABLE</dt><dd>{book.availableCopies} of {book.totalCopies}</dd></div></dl><div className="availability-panel"><span className={book.availableCopies > 0 ? 'status-dot' : 'status-dot unavailable'} /><div><strong>{book.availableCopies > 0 ? 'Available in the library' : 'Not currently available'}</strong><p>{book.availableCopies > 0 ? 'This title is currently on the shelf.' : 'Check back soon for availability.'}</p></div></div><Link to="/" className="primary-button">Explore more books <ArrowRight size={16} /></Link></article></div> : null}
   </main><Footer /></>;
 }
+function HashScroll() {
+  const { pathname, hash } = useLocation();
+
+  useEffect(() => {
+    if (!hash) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+      if (!target) return;
+      target.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname, hash]);
+
+  return null;
+}
+
 export default function App() {
-  return <Routes><Route path="/" element={<HomePage />} /><Route path="/books/:id" element={<BookDetailPage />} /><Route path="*" element={<><Header /><main className="not-found"><Compass size={35} /><h1>That page is <em>off the map.</em></h1><Link className="primary-button" to="/">Back to the library <ArrowRight size={16} /></Link></main><Footer /></>} /></Routes>;
+  return <><HashScroll /><Routes><Route path="/" element={<HomePage />} /><Route path="/books/:id" element={<BookDetailPage />} /><Route path="*" element={<><Header /><main className="not-found"><Compass size={35} /><h1>That page is <em>off the map.</em></h1><Link className="primary-button" to="/">Back to the library <ArrowRight size={16} /></Link></main><Footer /></>} /></Routes></>;
 }
