@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NextFunction, Request, Response } from 'express';
 import { AppModule, ObserveInstrument } from './app.module.js';
 
 async function bootstrap() {
@@ -8,7 +9,7 @@ async function bootstrap() {
   });
 
   app.enableCors();
-  app.use((request, _response, next) => {
+  app.use((request: Request, _response: Response, next: NextFunction) => {
     console.info('Incoming request', {
       method: request.method,
       path: request.path,
