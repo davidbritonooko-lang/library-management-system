@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, ArrowRight, BookOpen, BookMarked, Bookmark, ChevronDown, ChevronLeft,
-  ChevronRight, CircleAlert, Compass, Library, Search, SlidersHorizontal, Sparkles,
+  ArrowLeft, ArrowRight, BookOpen, BookMarked, ChevronLeft, ChevronRight,
+  CircleAlert, Compass, Search, SlidersHorizontal, Sparkles,
   X,
 } from 'lucide-react';
 import { getApiError, getBook, getBooks, getGenres } from './services/api.js';
@@ -64,19 +64,18 @@ function HomePage() {
   const [meta, setMeta] = useState({ total: 0, page: pageFromUrl, limit: LIMIT, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [genresLoading, setGenresLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => { setSearchInput(searchFromUrl); }, [searchFromUrl]);
   useEffect(() => {
     const controller = new AbortController();
     getGenres(controller.signal).then((data) => setGenres(Array.isArray(data) ? data : []))
-      .catch((err) => { if (err.name !== 'CanceledError') setGenreError(getApiError(err)); })
-      .finally(() => { if (!controller.signal.aborted) setGenresLoading(false); });
+      .catch((err) => { if (err.name !== 'CanceledError') setGenreError(getApiError(err)); });
     return () => controller.abort();
   }, []);
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const next = new URLSearchParams(params);
+      const next = new URLSearchParams(window.location.search);
       if (searchInput.trim()) next.set('search', searchInput.trim()); else next.delete('search');
       if (next.get('search') !== params.get('search')) next.delete('page');
       setParams(next, { replace: true });
@@ -95,7 +94,7 @@ function HomePage() {
       .catch((err) => { if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') setError(getApiError(err)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [searchFromUrl, genreFromUrl, pageFromUrl]);
+  }, [searchFromUrl, genreFromUrl, pageFromUrl, reloadKey]);
 
   function selectGenre(id) {
     const next = new URLSearchParams(params);
@@ -126,7 +125,7 @@ function HomePage() {
       <div className="genre-list" aria-label="Filter books by genre"><button className={!genreFromUrl ? 'genre-chip active' : 'genre-chip'} onClick={() => selectGenre('')}>All books</button>{genres.map((genre) => <button key={genre.id} className={genreFromUrl === genre.id ? 'genre-chip active' : 'genre-chip'} onClick={() => selectGenre(genre.id)}>{genre.name}<span>{genre._count?.books ?? ''}</span></button>)}</div>
       {genreError && <p className="inline-warning">{genreError} Genre filters may be unavailable.</p>}
       <div className="results-heading"><div><span className="results-kicker">{selectedGenre?.name || (searchFromUrl ? 'SEARCH RESULTS' : 'CURATED FOR THE CURIOUS')}</span><h3>{searchFromUrl ? <>Results for <em>“{searchFromUrl}”</em></> : selectedGenre ? <>{selectedGenre.name} <em>collection.</em></> : <>The library <em>shelf.</em></>}</h3></div><span className="result-count">{loading ? 'Finding books…' : meta.total + ' BOOKS'}</span></div>
-      {loading ? <SkeletonGrid /> : error ? <Notice title="The shelves are out of reach" message={error} action={<button className="text-button" onClick={() => setParams(new URLSearchParams(params))}>Try again <ArrowRight size={14} /></button>} /> : books.length === 0 ? <div className="empty-state"><div className="empty-icon"><BookMarked size={25} /></div><h3>No books found <em>this time.</em></h3><p>Try another title, author, or genre. Your next read is out there.</p><button className="outline-button" onClick={() => { setSearchInput(''); setParams(new URLSearchParams()); }}>Clear filters <X size={15} /></button></div> : <><div className="book-grid">{books.map((book, index) => <BookCard key={book.id} book={book} index={index} />)}</div>{meta.totalPages > 1 && <nav className="pagination" aria-label="Book catalog pages"><button onClick={() => changePage(pageFromUrl - 1)} disabled={pageFromUrl <= 1} aria-label="Previous page"><ChevronLeft size={17} /></button>{pageNumbers.map((page) => <button key={page} onClick={() => changePage(page)} className={page === pageFromUrl ? 'current' : ''} aria-current={page === pageFromUrl ? 'page' : undefined}>{page}</button>)}<button onClick={() => changePage(pageFromUrl + 1)} disabled={pageFromUrl >= meta.totalPages} aria-label="Next page"><ChevronRight size={17} /></button><span>PAGE {pageFromUrl} OF {meta.totalPages}</span></nav>}</>}
+      {loading ? <SkeletonGrid /> : error ? <Notice title="The shelves are out of reach" message={error} action={<button className="text-button" onClick={() => setReloadKey((value) => value + 1)}>Try again <ArrowRight size={14} /></button>} /> : books.length === 0 ? <div className="empty-state"><div className="empty-icon"><BookMarked size={25} /></div><h3>No books found <em>this time.</em></h3><p>Try another title, author, or genre. Your next read is out there.</p><button className="outline-button" onClick={() => { setSearchInput(''); setParams(new URLSearchParams()); }}>Clear filters <X size={15} /></button></div> : <><div className="book-grid">{books.map((book, index) => <BookCard key={book.id} book={book} index={index} />)}</div>{meta.totalPages > 1 && <nav className="pagination" aria-label="Book catalog pages"><button onClick={() => changePage(pageFromUrl - 1)} disabled={pageFromUrl <= 1} aria-label="Previous page"><ChevronLeft size={17} /></button>{pageNumbers.map((page) => <button key={page} onClick={() => changePage(page)} className={page === pageFromUrl ? 'current' : ''} aria-current={page === pageFromUrl ? 'page' : undefined}>{page}</button>)}<button onClick={() => changePage(pageFromUrl + 1)} disabled={pageFromUrl >= meta.totalPages} aria-label="Next page"><ChevronRight size={17} /></button><span>PAGE {pageFromUrl} OF {meta.totalPages}</span></nav>}</>}
     </section>
     <section className="quote-band"><div className="quote-mark">“</div><p>A book is a device to ignite the imagination.</p><span>— ALAN BENNETT</span><BookOpen className="quote-icon" size={42} /></section>
   </main><Footer /></>;
