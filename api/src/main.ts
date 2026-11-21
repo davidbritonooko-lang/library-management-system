@@ -8,6 +8,13 @@ async function bootstrap() {
   });
 
   app.enableCors();
+  app.use((request, _response, next) => {
+    console.info('Incoming request', {
+      method: request.method,
+      path: request.path,
+    });
+    next();
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -17,4 +24,7 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-await bootstrap();
+bootstrap().catch((error: unknown) => {
+  console.error('NestJS bootstrap failed', error);
+  process.exit(1);
+});
