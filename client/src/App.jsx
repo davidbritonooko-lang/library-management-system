@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, BookOpen, BookMarked, ChevronLeft, ChevronRight,
@@ -17,9 +17,6 @@ function coverStyle(book) {
   const [background, foreground] = palettes[index];
   return { '--cover-bg': background, '--cover-ink': foreground };
 }
-function initials(value = '') {
-  return value.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-}
 function Header() {
   return <header className="site-header">
     <Link to="/" className="brand" aria-label="Open Shelf home"><span className="brand-mark"><BookOpen size={21} /></span><span>open<span className="brand-light">shelf</span></span></Link>
@@ -30,8 +27,8 @@ function Header() {
 function Footer() {
   return <footer className="footer" id="about"><div className="footer-brand"><BookOpen size={18} /> open<span>shelf</span></div><p>A little more room for a good story.</p><span>Library catalog</span></footer>;
 }
-function SearchBox({ value, onChange }) {
-  return <label className="search-box"><Search size={19} /><input value={value} onChange={(event) => onChange(event.target.value)} placeholder="Search by title or author..." aria-label="Search books by title or author" /><kbd>⌘ K</kbd>{value && <button type="button" onClick={() => onChange('')} aria-label="Clear search"><X size={16} /></button>}</label>;
+function SearchBox({ value, onChange, inputRef }) {
+  return <div className="search-box"><Search size={19} /><input ref={inputRef} value={value} onChange={(event) => onChange(event.target.value)} placeholder="Search by title or author..." aria-label="Search books by title or author" maxLength={100} /><kbd aria-hidden="true">⌘ K</kbd>{value && <button type="button" onClick={() => onChange('')} aria-label="Clear search"><X size={16} /></button>}</div>;
 }
 function BookCard({ book, index }) {
   return <Link className="book-card" to={'/books/' + book.id} style={{ '--card-index': index }}>
@@ -58,6 +55,7 @@ function HomePage() {
   const genreFromUrl = params.get('genreId') || '';
   const pageFromUrl = Math.max(1, Number(params.get('page')) || 1);
   const [searchInput, setSearchInput] = useState(searchFromUrl);
+  const searchInputRef = useRef(null);
   const [genres, setGenres] = useState([]);
   const [genreError, setGenreError] = useState('');
   const [books, setBooks] = useState([]);
@@ -67,6 +65,16 @@ function HomePage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => { setSearchInput(searchFromUrl); }, [searchFromUrl]);
+  useEffect(() => {
+    function focusSearch(event) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    }
+    window.addEventListener('keydown', focusSearch);
+    return () => window.removeEventListener('keydown', focusSearch);
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     getGenres(controller.signal).then((data) => setGenres(Array.isArray(data) ? data : []))
@@ -121,7 +129,7 @@ function HomePage() {
     </section>
     <section className="catalog-section" id="catalog">
       <div className="section-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> THE COLLECTION</div><h2>Stories worth <em>sharing.</em></h2></div><p>Thoughtfully gathered. Ready to be discovered.</p></div>
-      <div className="catalog-toolbar"><SearchBox value={searchInput} onChange={setSearchInput} /><div className="filter-label"><SlidersHorizontal size={16} /><span>Explore by genre</span></div></div>
+      <div className="catalog-toolbar"><SearchBox value={searchInput} onChange={setSearchInput} inputRef={searchInputRef} /><div className="filter-label"><SlidersHorizontal size={16} /><span>Explore by genre</span></div></div>
       <div className="genre-list" aria-label="Filter books by genre"><button className={!genreFromUrl ? 'genre-chip active' : 'genre-chip'} onClick={() => selectGenre('')}>All books</button>{genres.map((genre) => <button key={genre.id} className={genreFromUrl === genre.id ? 'genre-chip active' : 'genre-chip'} onClick={() => selectGenre(genre.id)}>{genre.name}<span>{genre._count?.books ?? ''}</span></button>)}</div>
       {genreError && <p className="inline-warning">{genreError} Genre filters may be unavailable.</p>}
       <div className="results-heading"><div><span className="results-kicker">{selectedGenre?.name || (searchFromUrl ? 'SEARCH RESULTS' : 'CURATED FOR THE CURIOUS')}</span><h3>{searchFromUrl ? <>Results for <em>“{searchFromUrl}”</em></> : selectedGenre ? <>{selectedGenre.name} <em>collection.</em></> : <>The library <em>shelf.</em></>}</h3></div><span className="result-count">{loading ? 'Finding books…' : meta.total + ' BOOKS'}</span></div>
